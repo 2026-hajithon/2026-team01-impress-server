@@ -12,7 +12,9 @@ import com.impress.server.websocket.dto.response.RoundResultResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.impress.server.game.domain.GameRoundStatus;
 
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +52,45 @@ public class RoundResultService {
         )) {
             return Optional.empty();
         }
+
+        gameRound.openResult();
+
+        return Optional.of(
+                createRoundResult(
+                        gameRound,
+                        roomParticipants,
+                        answers
+                )
+        );
+    }
+
+    @Transactional
+    public Optional<RoundResultResponse> createOnTimeout(
+            GameRound gameRound,
+            Room room
+    ) {
+        if (gameRound.getStatus()
+                != GameRoundStatus.ANSWERING) {
+            return Optional.empty();
+        }
+
+        LocalDateTime deadlineAt =
+                gameRound.getDeadlineAt();
+
+        if (deadlineAt == null
+                || LocalDateTime.now().isBefore(deadlineAt)) {
+            return Optional.empty();
+        }
+
+        List<Participant> roomParticipants =
+                participantRepository
+                        .findAllByRoomOrderByIdAsc(room);
+
+        List<Answer> answers =
+                answerRepository
+                        .findAllByGameRoundOrderByIdAsc(
+                                gameRound
+                        );
 
         gameRound.openResult();
 

@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 public interface GameRoundRepository
         extends JpaRepository<GameRound, Long> {
@@ -43,5 +44,19 @@ public interface GameRoundRepository
         """)
     Optional<GameRound> findByIdForUpdate(
             @Param("roundId") Long roundId
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        SELECT gameRound
+        FROM GameRound gameRound
+        WHERE gameRound.status = :status
+          AND gameRound.deadlineAt IS NOT NULL
+          AND gameRound.deadlineAt <= :now
+        ORDER BY gameRound.deadlineAt ASC
+        """)
+    List<GameRound> findAllExpiredForUpdate(
+            @Param("status") GameRoundStatus status,
+            @Param("now") LocalDateTime now
     );
 }
