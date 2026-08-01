@@ -28,4 +28,7 @@ public interface NextRoundVoteRepository
     List<NextRoundVote> findAllByGameRound(
             GameRound gameRound
     );
+
+    boolean existsByGameRoundIdAndParticipantId(Long roundId, Long participantId);
+    long countByGameRoundId(Long roundId);
 }
