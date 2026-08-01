@@ -1,1 +1,14 @@
 # 2026-team01-impress-server
+[커밋 컨벤션]
+feat: 새로운 기능 추가
+fix: 버그 수정
+docs: 문서 수정
+style: 코드 스타일 변경 (코드 포매팅)
+design: 사용자 UI 디자인 변경
+test: 테스트 코드
+refactor: 리팩토링
+build: 빌드파일 수정
+ci: CI 설정 파일 수정
+chore: 자잘한 수정
+rename: 파일/폴더명 수정
+remove: 파일 삭제
