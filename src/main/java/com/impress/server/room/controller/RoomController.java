@@ -54,4 +54,14 @@ public class RoomController {
         // 데이터가 없는 공통 성공 응답 반환
         return ResponseEntity.ok(ApiResponse.success());
     }
+
+    @GetMapping("/{roomCode}/result")
+    public ResponseEntity<ApiResponse<GameResultResponse>> getGameResult(
+            @PathVariable String roomCode,
+            @RequestHeader("Participant-Id") Long participantId) {
+
+        GameResultResponse responseData = roomService.getGameResult(roomCode, participantId);
+
+        return ResponseEntity.ok(ApiResponse.success(responseData));
+    }
 }

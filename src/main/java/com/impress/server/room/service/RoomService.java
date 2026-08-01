@@ -1,9 +1,11 @@
 package com.impress.server.room.service;
 
+import com.impress.server.answer.domain.Answer;
 import com.impress.server.answer.repository.AnswerRepository;
 import com.impress.server.game.domain.GameRound;
 import com.impress.server.game.domain.GameRoundStatus;
 import com.impress.server.game.domain.GameSession;
+import com.impress.server.game.domain.GameSessionStatus;
 import com.impress.server.game.repository.GameRoundRepository;
 import com.impress.server.game.repository.GameSessionRepository;
 import com.impress.server.game.repository.NextRoundVoteRepository;
@@ -21,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
@@ -137,7 +140,7 @@ public class RoomService {
 
             case PLAYING:
                 // 1. 현재 진행 중인 게임 세션 조회
-                GameSession activeSession = gameSessionRepository.findByRoomAndStatus(room, "PLAYING")
+                GameSession activeSession = gameSessionRepository.findByRoomAndStatus(room, GameSessionStatus.PLAYING)
                         .orElseThrow(() -> new IllegalStateException("진행 중인 게임 세션이 없습니다."));
 
                 // 2. 현재 진행 중인 라운드 조회 (String "COMPLETED" 대신 Enum 사용)
@@ -228,5 +231,146 @@ public class RoomService {
             // [일반 참가자인 경우] 본인만 방에서 나가기
             participantRepository.delete(participant);
         }
+    }
+
+    @Transactional
+    public GameResultResponse getGameResult(String roomCode, Long participantId) {
+        // 1. 방 및 참가자 검증
+        Room room = roomRepository.findByCode(roomCode)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 방입니다."));
+        Participant me = participantRepository.findById(participantId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 참가자입니다."));
+        if (!me.getRoom().getId().equals(room.getId())) {
+            throw new IllegalArgumentException("해당 방의 참가자가 아닙니다.");
+        }
+
+        // 2. 가장 최근에 종료된 게임 세션 조회
+        GameSession lastSession = gameSessionRepository.findTopByRoomAndStatusOrderByIdDesc(room, GameSessionStatus.FINISHED)
+                .orElseThrow(() -> new IllegalStateException("종료된 게임 세션이 없습니다."));
+
+        // 3. 참가자 목록 매핑
+        List<ParticipantInfo> participantInfos = participantRepository.findByRoom(room).stream()
+                .map(p -> new ParticipantInfo(
+                        p.getId(), p.getName(), p.getRole(), p.getConnectionStatus()
+                )).collect(Collectors.toList());
+
+        // 4. 라운드 및 답변 결과 매핑
+        List<GameRound> rounds = gameRoundRepository.findByGameSessionOrderByRoundOrderAsc(lastSession);
+        List<GameResultResponse.RoundResultDto> roundDtos = rounds.stream().map(round -> {
+            Question question = round.getQuestion();
+            Participant target = round.getTargetParticipant();
+
+            // 해당 라운드의 모든 답변 조회
+            List<Answer> answers = answerRepository.findByGameRound(round);
+
+            // qType에 따른 result 데이터 생성
+            Map<String, Object> resultData = buildResultMap(round, answers);
+
+            return GameResultResponse.RoundResultDto.builder()
+                    .roundId(round.getId())
+                    .roundOrder(round.getRoundOrder())
+                    .qType(question.getQuestionType().name())
+                    .targetId(target != null ? target.getId() : null)
+                    .targetName(target != null ? target.getName() : null)
+                    .question(question.getContent())
+                    .result(resultData)
+                    .build();
+        }).collect(Collectors.toList());
+
+        // 5. 최종 응답 반환
+        return GameResultResponse.builder()
+                .roomCode(room.getCode())
+                .roomName(room.getName())
+                .gameSessionId(lastSession.getId())
+                .participants(participantInfos)
+                .rounds(roundDtos)
+                .build();
+    }
+
+    // 💡 질문 유형별로 답변 결과를 예쁘게 포맷팅하는 헬퍼 메서드
+    private Map<String, Object> buildResultMap(GameRound round, List<Answer> answers) {
+        // 엔티티 구조에 따라 QuestionType Enum의 이름을 가져옵니다.
+        // DB 스키마에는 INDIVIDUAL_CHOICE로 되어 있고 API 명세에는 INDIVIDUAL_OX로 되어있어 둘 다 호환되게 처리합니다.
+        String qType = round.getQuestion().getQuestionType().name();
+
+        // 1. 빈칸 질문 (BLANK)
+        if ("BLANK".equals(qType)) {
+            List<Map<String, Object>> answerList = answers.stream().map(a -> {
+                Map<String, Object> map = new java.util.HashMap<>();
+                map.put("submitterId", a.getRespondentParticipant().getId());
+                map.put("submitterName", a.getRespondentParticipant().getName());
+                map.put("textAnswer", a.getTextContent()); // answers.text_content 사용
+                return map;
+            }).collect(Collectors.toList());
+
+            return Map.of("answers", answerList);
+        }
+
+        // 2. 개인 OX 질문 (INDIVIDUAL_OX / INDIVIDUAL_CHOICE)
+        if ("INDIVIDUAL_OX".equals(qType) || "INDIVIDUAL_CHOICE".equals(qType)) {
+            List<Map<String, Object>> correctSubmitters = new java.util.ArrayList<>();
+            List<Map<String, Object>> wrongSubmitters = new java.util.ArrayList<>();
+            String trueAnswer = "";
+
+            Long targetId = round.getTargetParticipant().getId();
+
+            // 대상자(Target)의 제출 답변을 찾아 실제 정답(trueAnswer)으로 간주
+            Answer targetAnswer = answers.stream()
+                    .filter(a -> a.getRespondentParticipant().getId().equals(targetId))
+                    .findFirst()
+                    .orElse(null);
+
+            if (targetAnswer != null && targetAnswer.getSelectedOption() != null) {
+                trueAnswer = targetAnswer.getSelectedOption().getContent();
+                Long trueOptionId = targetAnswer.getSelectedOption().getId();
+
+                for (Answer a : answers) {
+                    // 대상자 본인의 답변은 채점자 목록에서 제외
+                    if (a.getRespondentParticipant().getId().equals(targetId)) continue;
+
+                    Map<String, Object> submitter = new java.util.HashMap<>();
+                    submitter.put("submitterId", a.getRespondentParticipant().getId());
+                    submitter.put("submitterName", a.getRespondentParticipant().getName());
+
+                    // 선택한 옵션 ID가 정답 옵션 ID와 같으면 정답자, 아니면 오답자
+                    if (a.getSelectedOption() != null && a.getSelectedOption().getId().equals(trueOptionId)) {
+                        correctSubmitters.add(submitter);
+                    } else {
+                        wrongSubmitters.add(submitter);
+                    }
+                }
+            }
+
+            return Map.of(
+                    "trueAnswer", trueAnswer,
+                    "correctSubmitters", correctSubmitters,
+                    "wrongSubmitters", wrongSubmitters
+            );
+        }
+
+        // 3. 공통 투표 (COMMON_VOTE)
+        if ("COMMON_VOTE".equals(qType)) {
+            // answers 테이블의 selected_participant_id를 기준으로 그룹화하여 투표 수(Count) 계산
+            Map<Participant, Long> voteCounts = answers.stream()
+                    .filter(a -> a.getSelectedParticipant() != null)
+                    .collect(Collectors.groupingBy(Answer::getSelectedParticipant, Collectors.counting()));
+
+            List<Map<String, Object>> votes = voteCounts.entrySet().stream()
+                    .map(entry -> {
+                        Map<String, Object> map = new java.util.HashMap<>();
+                        map.put("participantId", entry.getKey().getId());
+                        map.put("participantName", entry.getKey().getName());
+                        map.put("count", entry.getValue().intValue()); // Long을 int로 변환
+                        return map;
+                    })
+                    // 투표 수가 많은 순서대로(내림차순) 정렬
+                    .sorted((m1, m2) -> Integer.compare((Integer) m2.get("count"), (Integer) m1.get("count")))
+                    .collect(Collectors.toList());
+
+            return Map.of("votes", votes);
+        }
+
+        // 알 수 없는 유형인 경우 빈 객체 반환
+        return Map.of();
     }
 }

@@ -21,6 +21,8 @@ public interface GameSessionRepository
             GameSessionStatus status
     );
 
-    Optional<GameSession> findByRoomAndStatus(Room room, String status);
+    Optional<GameSession> findByRoomAndStatus(Room room, GameSessionStatus status);
+
+    Optional<GameSession> findTopByRoomAndStatusOrderByIdDesc(Room room, GameSessionStatus status);
 
 }

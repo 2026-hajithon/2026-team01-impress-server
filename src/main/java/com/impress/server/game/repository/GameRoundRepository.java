@@ -33,4 +33,5 @@ public interface GameRoundRepository
 
     Optional<GameRound> findTopByGameSessionAndStatusNotOrderByRoundOrderAsc(GameSession session, GameRoundStatus status);
 
+    List<GameRound> findByGameSessionOrderByRoundOrderAsc(GameSession session);
 }

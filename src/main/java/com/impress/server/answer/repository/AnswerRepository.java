@@ -30,4 +30,6 @@ public interface AnswerRepository
     );
 
     boolean existsByGameRoundIdAndRespondentParticipantId(Long roundId, Long participantId);
+
+    List<Answer> findByGameRound(GameRound round);
 }
