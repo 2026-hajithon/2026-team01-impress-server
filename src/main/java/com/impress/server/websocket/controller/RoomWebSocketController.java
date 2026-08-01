@@ -11,6 +11,9 @@ import org.springframework.messaging.MessageDeliveryException;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.stereotype.Controller;
+import com.impress.server.websocket.dto.request.AnswerSubmitRequest;
+import com.impress.server.websocket.service.AnswerWebSocketService;
+
 
 import java.security.Principal;
 
@@ -20,14 +23,17 @@ public class RoomWebSocketController {
     private final RoomWebSocketService roomWebSocketService;
     private final GameWebSocketService gameWebSocketService;
     private final WebSocketEventPublisher eventPublisher;
+    private final AnswerWebSocketService answerWebSocketService;
 
     public RoomWebSocketController(
             RoomWebSocketService roomWebSocketService,
             GameWebSocketService gameWebSocketService,
+            AnswerWebSocketService answerWebSocketService,
             WebSocketEventPublisher eventPublisher
     ) {
         this.roomWebSocketService = roomWebSocketService;
         this.gameWebSocketService = gameWebSocketService;
+        this.answerWebSocketService = answerWebSocketService;
         this.eventPublisher = eventPublisher;
     }
 
@@ -87,6 +93,22 @@ public class RoomWebSocketController {
                 roomCode,
                 WebSocketEventType.ROUND_START,
                 response
+        );
+    }
+
+    @MessageMapping("/rooms/{roomCode}/answer")
+    public void answer(
+            @DestinationVariable String roomCode,
+            AnswerSubmitRequest request,
+            Principal principal
+    ) {
+        StompPrincipal stompPrincipal =
+                requireStompPrincipal(principal);
+
+        answerWebSocketService.submit(
+                roomCode,
+                stompPrincipal.participantId(),
+                request
         );
     }
 
