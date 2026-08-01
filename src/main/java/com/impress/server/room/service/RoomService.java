@@ -375,4 +375,17 @@ public class RoomService {
         // 알 수 없는 유형인 경우 빈 객체 반환
         return Map.of();
     }
+    @Transactional
+    public RoomHostResponse getRoomHost(String roomCode) {
+        // 1. 방 조회
+        Room room = roomRepository.findByCode(roomCode)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 방입니다."));
+
+        // 2. 해당 방의 HOST 역할을 가진 참가자 조회
+        Participant host = participantRepository.findByRoomAndRole(room, ParticipantRole.HOST)
+                .orElseThrow(() -> new IllegalStateException("해당 방에 방장이 존재하지 않습니다."));
+
+        // 3. 방장 이름 반환
+        return new RoomHostResponse(host.getName());
+    }
 }

@@ -2,6 +2,7 @@ package com.impress.server.participant.repository;
 
 import com.impress.server.participant.domain.ConnectionStatus;
 import com.impress.server.participant.domain.Participant;
+import com.impress.server.participant.domain.ParticipantRole;
 import com.impress.server.room.domain.Room;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -32,4 +33,6 @@ public interface ParticipantRepository
     void deleteByRoom(Room room);
 
     long countByRoomAndConnectionStatus(Room room, ConnectionStatus connectionStatus);
+
+    Optional<Participant> findByRoomAndRole(Room room, ParticipantRole role);
 }
