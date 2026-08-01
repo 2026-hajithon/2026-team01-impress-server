@@ -27,4 +27,6 @@ public interface ParticipantRepository
     long countByRoom(Room room);
 
     List<Participant> findByRoom(Room room);
+
+    void deleteByRoom(Room room);
 }

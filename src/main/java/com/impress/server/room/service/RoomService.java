@@ -160,7 +160,7 @@ public class RoomService {
         // 5. 역할에 따른 분기 처리 (방 폭파 vs 단순 퇴장)
         if (participant.getRole() == ParticipantRole.HOST) {
             // [방장인 경우] 방 폭파
-            // DB의 ON DELETE CASCADE 기능 덕분에 방만 삭제해도 참가자 전체가 자동 삭제됩니다.
+            participantRepository.deleteByRoom(room);
             roomRepository.delete(room);
         } else {
             // [일반 참가자인 경우] 본인만 방에서 나가기
