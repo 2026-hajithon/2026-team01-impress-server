@@ -43,4 +43,15 @@ public class RoomController {
         return ResponseEntity.ok(ApiResponse.success(responseData));
     }
 
+    @DeleteMapping("/{roomCode}/participants/me")
+    public ResponseEntity<ApiResponse<Void>> leaveRoom(
+            @PathVariable String roomCode,
+            @RequestHeader("Participant-Id") Long participantId) {
+
+        // 서비스 로직 실행 (검증 및 DB 삭제)
+        roomService.leaveRoom(roomCode, participantId);
+
+        // 데이터가 없는 공통 성공 응답 반환
+        return ResponseEntity.ok(ApiResponse.success());
+    }
 }

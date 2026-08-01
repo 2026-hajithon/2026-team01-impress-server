@@ -136,4 +136,35 @@ public class RoomService {
 
         return responseBuilder.build();
     }
+
+    @Transactional
+    public void leaveRoom(String roomCode, Long participantId) {
+        // 1. 방 조회
+        Room room = roomRepository.findByCode(roomCode)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 방입니다."));
+
+        // 2. 참가자 조회
+        Participant participant = participantRepository.findById(participantId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 참가자입니다."));
+
+        // 3. 검증: 요청한 참가자가 해당 방에 속해있는지 확인
+        if (!participant.getRoom().getId().equals(room.getId())) {
+            throw new IllegalArgumentException("해당 방의 참가자가 아닙니다.");
+        }
+
+        // 4. 검증: 방 상태가 WAITING(대기방)인지 확인
+        if (room.getStatus() != RoomStatus.WAITING) {
+            throw new IllegalStateException("게임이 이미 시작되어 나갈 수 없습니다.");
+        }
+
+        // 5. 역할에 따른 분기 처리 (방 폭파 vs 단순 퇴장)
+        if (participant.getRole() == ParticipantRole.HOST) {
+            // [방장인 경우] 방 폭파
+            // DB의 ON DELETE CASCADE 기능 덕분에 방만 삭제해도 참가자 전체가 자동 삭제됩니다.
+            roomRepository.delete(room);
+        } else {
+            // [일반 참가자인 경우] 본인만 방에서 나가기
+            participantRepository.delete(participant);
+        }
+    }
 }
