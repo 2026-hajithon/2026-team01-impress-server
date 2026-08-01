@@ -13,7 +13,8 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.stereotype.Controller;
 import com.impress.server.websocket.dto.request.AnswerSubmitRequest;
 import com.impress.server.websocket.service.AnswerWebSocketService;
-
+import com.impress.server.websocket.dto.request.NextRoundRequest;
+import com.impress.server.websocket.service.NextRoundWebSocketService;
 
 import java.security.Principal;
 
@@ -24,16 +25,19 @@ public class RoomWebSocketController {
     private final GameWebSocketService gameWebSocketService;
     private final WebSocketEventPublisher eventPublisher;
     private final AnswerWebSocketService answerWebSocketService;
+    private final NextRoundWebSocketService nextRoundWebSocketService;
 
     public RoomWebSocketController(
             RoomWebSocketService roomWebSocketService,
             GameWebSocketService gameWebSocketService,
             AnswerWebSocketService answerWebSocketService,
+            NextRoundWebSocketService nextRoundWebSocketService,
             WebSocketEventPublisher eventPublisher
     ) {
         this.roomWebSocketService = roomWebSocketService;
         this.gameWebSocketService = gameWebSocketService;
         this.answerWebSocketService = answerWebSocketService;
+        this.nextRoundWebSocketService = nextRoundWebSocketService;
         this.eventPublisher = eventPublisher;
     }
 
@@ -116,6 +120,43 @@ public class RoomWebSocketController {
                         response
                 )
         );
+    }
+
+    @MessageMapping("/rooms/{roomCode}/next")
+    public void next(
+            @DestinationVariable String roomCode,
+            NextRoundRequest request,
+            Principal principal
+    ) {
+        StompPrincipal stompPrincipal =
+                requireStompPrincipal(principal);
+
+        NextRoundWebSocketService.NextRoundResult result =
+                nextRoundWebSocketService.vote(
+                        roomCode,
+                        stompPrincipal.participantId(),
+                        request
+                );
+
+        eventPublisher.broadcastToRoom(
+                roomCode,
+                WebSocketEventType.NEXT_ROUND_VOTE_UPDATE,
+                result.voteResponse()
+        );
+
+        if (result.nextRound() != null) {
+            eventPublisher.broadcastToRoom(
+                    roomCode,
+                    WebSocketEventType.ROUND_START,
+                    result.nextRound()
+            );
+        } else if (result.gameEnded()) {
+            eventPublisher.broadcastToRoom(
+                    roomCode,
+                    WebSocketEventType.GAME_END,
+                    null
+            );
+        }
     }
 
     private StompPrincipal requireStompPrincipal(

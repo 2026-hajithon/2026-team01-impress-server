@@ -19,6 +19,7 @@ import com.impress.server.websocket.dto.response.RoundStartResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.impress.server.game.domain.GameRoundStatus;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -127,6 +128,36 @@ public class GameWebSocketService {
 
         return createRoundStartResponse(
                 firstRound,
+                timeLimitSeconds
+        );
+    }
+
+    @Transactional
+    public RoundStartResponse startNextRound(
+            GameRound gameRound
+    ) {
+        if (gameRound.getStatus()
+                != GameRoundStatus.PENDING) {
+            throw new IllegalStateException(
+                    "시작할 수 없는 라운드입니다."
+            );
+        }
+
+        int timeLimitSeconds =
+                getTimeLimitSeconds(
+                        gameRound.getQuestion()
+                                .getQuestionType()
+                );
+
+        gameRound.start(
+                LocalDateTime.now()
+                        .plusSeconds(timeLimitSeconds)
+        );
+
+        gameRoundRepository.saveAndFlush(gameRound);
+
+        return createRoundStartResponse(
+                gameRound,
                 timeLimitSeconds
         );
     }
