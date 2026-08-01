@@ -1,9 +1,17 @@
 package com.impress.server.room.service;
 
+import com.impress.server.answer.repository.AnswerRepository;
+import com.impress.server.game.domain.GameRound;
+import com.impress.server.game.domain.GameRoundStatus;
+import com.impress.server.game.domain.GameSession;
+import com.impress.server.game.repository.GameRoundRepository;
+import com.impress.server.game.repository.GameSessionRepository;
+import com.impress.server.game.repository.NextRoundVoteRepository;
 import com.impress.server.participant.domain.ConnectionStatus;
 import com.impress.server.participant.domain.Participant;
 import com.impress.server.participant.domain.ParticipantRole;
 import com.impress.server.participant.repository.ParticipantRepository;
+import com.impress.server.question.domain.Question;
 import com.impress.server.room.domain.Room;
 import com.impress.server.room.domain.RoomStatus;
 import com.impress.server.room.dto.*;
@@ -22,6 +30,10 @@ public class RoomService {
 
     private final RoomRepository roomRepository;
     private final ParticipantRepository participantRepository;
+    private final GameSessionRepository gameSessionRepository;
+    private final NextRoundVoteRepository nextRoundVoteRepository;
+    private final GameRoundRepository gameRoundRepository;
+    private final AnswerRepository answerRepository;
 
     @Transactional
     public RoomCreateResponse createRoom(RoomCreateRequest request) {
@@ -124,9 +136,59 @@ public class RoomService {
                 break;
 
             case PLAYING:
-                // TODO: 게임 진행 상태
-                // 차후 game_sessions, game_rounds 테이블이 생성되면 여기서 현재 라운드를 조회해 세팅합니다.
-                // responseBuilder.currentRound(조회된_라운드_정보);
+                // 1. 현재 진행 중인 게임 세션 조회
+                GameSession activeSession = gameSessionRepository.findByRoomAndStatus(room, "PLAYING")
+                        .orElseThrow(() -> new IllegalStateException("진행 중인 게임 세션이 없습니다."));
+
+                // 2. 현재 진행 중인 라운드 조회 (String "COMPLETED" 대신 Enum 사용)
+                GameRound currentRound = gameRoundRepository.findTopByGameSessionAndStatusNotOrderByRoundOrderAsc(activeSession, GameRoundStatus.COMPLETED)
+                        .orElseThrow(() -> new IllegalStateException("진행 중인 라운드가 없습니다."));
+
+                Question question = currentRound.getQuestion();
+
+                // [수정 포인트] String이 아니라 팀원이 만든 Enum 타입으로 받습니다.
+                GameRoundStatus phase = currentRound.getStatus();
+
+                // 3. 라운드 공통 정보 세팅
+                CurrentRoundInfo.CurrentRoundInfoBuilder roundBuilder = CurrentRoundInfo.builder()
+                        .roundId(currentRound.getId())
+                        .roundOrder(currentRound.getRoundOrder())
+                        .totalRounds(activeSession.getTotalRounds())
+                        // [수정 포인트] Enum.name()을 사용해 DTO의 String 필드에 맞게 변환합니다.
+                        .qType(question.getQuestionType().name())
+                        .phase(phase.name())
+                        .question(question.getContent())
+                        .targetId(currentRound.getTargetParticipant() != null ? currentRound.getTargetParticipant().getId() : null);
+
+                // 4. 라운드 Phase(상태)에 따른 분기 처리 (equals 대신 Enum 비교 == 사용)
+                if (phase == GameRoundStatus.ANSWERING) {
+                    int timeRemaining = 0;
+                    if (currentRound.getDeadlineAt() != null) {
+                        timeRemaining = (int) java.time.Duration.between(java.time.LocalDateTime.now(), currentRound.getDeadlineAt()).getSeconds();
+                        timeRemaining = Math.max(0, timeRemaining);
+                    }
+
+                    boolean myAnswerSubmitted = answerRepository.existsByGameRoundIdAndRespondentParticipantId(currentRound.getId(), participantId);
+
+                    roundBuilder.timeRemaining(timeRemaining)
+                            .myAnswerSubmitted(myAnswerSubmitted);
+
+                } else if (phase == GameRoundStatus.RESULT) {
+                    boolean myNextVoteSubmitted = nextRoundVoteRepository.existsByGameRoundIdAndParticipantId(currentRound.getId(), participantId);
+
+                    long nextVoteCount = nextRoundVoteRepository.countByGameRoundId(currentRound.getId());
+
+                    long connectedCount = participantRepository.countByRoomAndConnectionStatus(room, ConnectionStatus.CONNECTED);
+                    int nextVoteRequired = (int) Math.floor(connectedCount / 2.0) + 1;
+
+                    // TODO: 결과 조회 로직
+
+                    roundBuilder.myNextVoteSubmitted(myNextVoteSubmitted)
+                            .nextVoteCount((int) nextVoteCount)
+                            .nextVoteRequired(nextVoteRequired);
+                }
+
+                responseBuilder.currentRound(roundBuilder.build());
                 break;
 
             case FINISHED:

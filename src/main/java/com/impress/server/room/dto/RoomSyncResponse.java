@@ -25,6 +25,6 @@ public class RoomSyncResponse {
     private List<ParticipantInfo> participants;
 
     // PLAYING 상태일 때만 값이 들어가는 필드 (추후 라운드 엔티티 구현 시 사용)
-    private Object currentRound;
+    private CurrentRoundInfo currentRound;
 
 }

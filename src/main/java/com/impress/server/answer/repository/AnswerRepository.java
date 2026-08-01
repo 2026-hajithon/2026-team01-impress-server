@@ -28,4 +28,6 @@ public interface AnswerRepository
     long countByGameRound(
             GameRound gameRound
     );
+
+    boolean existsByGameRoundIdAndRespondentParticipantId(Long roundId, Long participantId);
 }

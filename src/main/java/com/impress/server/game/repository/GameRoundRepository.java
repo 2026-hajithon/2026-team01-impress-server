@@ -30,4 +30,7 @@ public interface GameRoundRepository
     long countByGameSession(
             GameSession gameSession
     );
+
+    Optional<GameRound> findTopByGameSessionAndStatusNotOrderByRoundOrderAsc(GameSession session, GameRoundStatus status);
+
 }
