@@ -32,7 +32,9 @@ public class GameWebSocketService {
     private static final int MIN_PARTICIPANTS = 2;
     private static final int MAX_PARTICIPANTS = 8;
     private static final int COMMON_ROUND_COUNT = 2;
-    private static final int ROUND_TIME_LIMIT_SECONDS = 60;
+    private static final int BLANK_TIME_LIMIT_SECONDS = 60;
+    private static final int INDIVIDUAL_CHOICE_TIME_LIMIT_SECONDS = 15;
+    private static final int COMMON_VOTE_TIME_LIMIT_SECONDS = 15;
 
     private final RoomRepository roomRepository;
     private final ParticipantRepository participantRepository;
@@ -109,16 +111,24 @@ public class GameWebSocketService {
 
         GameRound firstRound = rounds.get(0);
 
+        int timeLimitSeconds =
+                getTimeLimitSeconds(
+                        firstRound.getQuestion().getQuestionType()
+                );
+
         firstRound.start(
                 LocalDateTime.now()
-                        .plusSeconds(ROUND_TIME_LIMIT_SECONDS)
+                        .plusSeconds(timeLimitSeconds)
         );
 
         room.startGame();
 
         gameRoundRepository.saveAllAndFlush(rounds);
 
-        return createRoundStartResponse(firstRound);
+        return createRoundStartResponse(
+                firstRound,
+                timeLimitSeconds
+        );
     }
 
     private void validateHost(Participant requester) {
@@ -254,8 +264,24 @@ public class GameWebSocketService {
         return rounds;
     }
 
+    private int getTimeLimitSeconds(
+            QuestionType questionType
+    ) {
+        return switch (questionType) {
+            case BLANK ->
+                    BLANK_TIME_LIMIT_SECONDS;
+
+            case INDIVIDUAL_CHOICE ->
+                    INDIVIDUAL_CHOICE_TIME_LIMIT_SECONDS;
+
+            case COMMON_VOTE ->
+                    COMMON_VOTE_TIME_LIMIT_SECONDS;
+        };
+    }
+
     private RoundStartResponse createRoundStartResponse(
-            GameRound gameRound
+            GameRound gameRound,
+            int timeLimitSeconds
     ) {
         Question question = gameRound.getQuestion();
 
@@ -286,7 +312,7 @@ public class GameWebSocketService {
                 targetId,
                 question.getContent(),
                 options,
-                ROUND_TIME_LIMIT_SECONDS
+                timeLimitSeconds
         );
     }
 }
