@@ -1,4 +1,4 @@
-package com.impress.config;
+package com.impress.server.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
