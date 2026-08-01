@@ -41,15 +41,13 @@ jobs:
             # 8080 포트에서 실행 중인 서버 끄기
             sudo fuser -k -n tcp 8080 || true
             
-            # application.properties 파일에 깃허브 Secrets 값을 직접 주입하기
-            echo "spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver" > /home/ubuntu/app/src/main/resources/application.properties
-            echo "spring.datasource.url=${{ secrets.DB_URL }}" >> /home/ubuntu/app/src/main/resources/application.properties
-            echo "spring.datasource.username=${{ secrets.DB_USERNAME }}" >> /home/ubuntu/app/src/main/resources/application.properties
-            echo "spring.datasource.password=${{ secrets.DB_PASSWORD }}" >> /home/ubuntu/app/src/main/resources/application.properties
-            echo "spring.jpa.hibernate.ddl-auto=update" >> /home/ubuntu/app/src/main/resources/application.properties
-            
-            # 기존 로그 파일 삭제
+            # 기존 로그 삭제
             rm -f /home/ubuntu/nohup.out
             
-            # 서버 실행
-            nohup java -jar /home/ubuntu/app/build/libs/impress-server-0.0.1-SNAPSHOT.jar > /home/ubuntu/nohup.out 2>&1 &
+            # GitHub Secrets의 DB 정보를 Java System Property(-D)로 직접 넘겨주며 실행
+            nohup java \
+              -DDB_URL="${{ secrets.DB_URL }}" \
+              -DDB_USERNAME="${{ secrets.DB_USERNAME }}" \
+              -DDB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+              -jar /home/ubuntu/app/build/libs/impress-server-0.0.1-SNAPSHOT.jar \
+              > /home/ubuntu/nohup.out 2>&1 &
