@@ -1,6 +1,8 @@
 package com.impress.server.participant.repository;
 
+import com.impress.server.participant.domain.ConnectionStatus;
 import com.impress.server.participant.domain.Participant;
+import com.impress.server.participant.domain.ParticipantRole;
 import com.impress.server.room.domain.Room;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -23,4 +25,14 @@ public interface ParticipantRepository
             Room room,
             String name
     );
+
+    long countByRoom(Room room);
+
+    List<Participant> findByRoom(Room room);
+
+    void deleteByRoom(Room room);
+
+    long countByRoomAndConnectionStatus(Room room, ConnectionStatus connectionStatus);
+
+    Optional<Participant> findByRoomAndRole(Room room, ParticipantRole role);
 }

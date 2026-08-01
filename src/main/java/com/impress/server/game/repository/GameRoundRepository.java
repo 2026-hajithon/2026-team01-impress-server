@@ -59,4 +59,7 @@ public interface GameRoundRepository
             @Param("status") GameRoundStatus status,
             @Param("now") LocalDateTime now
     );
+    Optional<GameRound> findTopByGameSessionAndStatusNotOrderByRoundOrderAsc(GameSession session, GameRoundStatus status);
+
+    List<GameRound> findByGameSessionOrderByRoundOrderAsc(GameSession session);
 }
