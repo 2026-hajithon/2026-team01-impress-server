@@ -17,7 +17,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .setAllowedOriginPatterns(
                         "https://2026-team01-impress-web.vercel.app", // 배포된 프론트엔드 도메인
                         "http://localhost:3000",                      // 로컬 테스트 (React/Next.js 기본 포트)
-                        "http://localhost:5173"                       // 로컬 테스트 (Vite 기본 포트)
+                        "http://localhost:5173",                      // 로컬 테스트 (Vite 기본 포트)
+                        "http://localhost:5174"
                 );
     }
 
