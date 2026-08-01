@@ -23,4 +23,6 @@ public interface ParticipantRepository
             Room room,
             String name
     );
+
+    long countByRoom(Room room);
 }
