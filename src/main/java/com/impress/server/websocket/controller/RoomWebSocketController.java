@@ -1,7 +1,11 @@
 package com.impress.server.websocket.controller;
 
 import com.impress.server.websocket.auth.StompPrincipal;
+import com.impress.server.websocket.dto.WebSocketEventType;
 import com.impress.server.websocket.dto.request.KickParticipantRequest;
+import com.impress.server.websocket.dto.response.RoundStartResponse;
+import com.impress.server.websocket.publisher.WebSocketEventPublisher;
+import com.impress.server.websocket.service.GameWebSocketService;
 import com.impress.server.websocket.service.RoomWebSocketService;
 import org.springframework.messaging.MessageDeliveryException;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -14,11 +18,17 @@ import java.security.Principal;
 public class RoomWebSocketController {
 
     private final RoomWebSocketService roomWebSocketService;
+    private final GameWebSocketService gameWebSocketService;
+    private final WebSocketEventPublisher eventPublisher;
 
     public RoomWebSocketController(
-            RoomWebSocketService roomWebSocketService
+            RoomWebSocketService roomWebSocketService,
+            GameWebSocketService gameWebSocketService,
+            WebSocketEventPublisher eventPublisher
     ) {
         this.roomWebSocketService = roomWebSocketService;
+        this.gameWebSocketService = gameWebSocketService;
+        this.eventPublisher = eventPublisher;
     }
 
     @MessageMapping("/rooms/{roomCode}/enter")
@@ -56,6 +66,27 @@ public class RoomWebSocketController {
                 roomCode,
                 stompPrincipal.participantId(),
                 request.targetParticipantId()
+        );
+    }
+
+    @MessageMapping("/rooms/{roomCode}/start")
+    public void start(
+            @DestinationVariable String roomCode,
+            Principal principal
+    ) {
+        StompPrincipal stompPrincipal =
+                requireStompPrincipal(principal);
+
+        RoundStartResponse response =
+                gameWebSocketService.start(
+                        roomCode,
+                        stompPrincipal.participantId()
+                );
+
+        eventPublisher.broadcastToRoom(
+                roomCode,
+                WebSocketEventType.ROUND_START,
+                response
         );
     }
 
