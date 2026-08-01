@@ -54,4 +54,25 @@ public class Room {
         this.status = RoomStatus.WAITING;
         this.createdAt = LocalDateTime.now();
     }
+
+    public void startGame() {
+        if (status != RoomStatus.WAITING
+                && status != RoomStatus.FINISHED) {
+            throw new IllegalStateException(
+                    "현재 방 상태에서는 게임을 시작할 수 없습니다."
+            );
+        }
+
+        this.status = RoomStatus.PLAYING;
+    }
+
+    public void finishGame() {
+        if (status != RoomStatus.PLAYING) {
+            throw new IllegalStateException(
+                    "진행 중인 방만 종료할 수 있습니다."
+            );
+        }
+
+        this.status = RoomStatus.FINISHED;
+    }
 }

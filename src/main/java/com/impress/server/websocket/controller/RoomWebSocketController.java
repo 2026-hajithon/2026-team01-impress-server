@@ -1,12 +1,19 @@
 package com.impress.server.websocket.controller;
 
 import com.impress.server.websocket.auth.StompPrincipal;
+import com.impress.server.websocket.dto.WebSocketEventType;
 import com.impress.server.websocket.dto.request.KickParticipantRequest;
+import com.impress.server.websocket.dto.response.RoundStartResponse;
+import com.impress.server.websocket.publisher.WebSocketEventPublisher;
+import com.impress.server.websocket.service.GameWebSocketService;
 import com.impress.server.websocket.service.RoomWebSocketService;
 import org.springframework.messaging.MessageDeliveryException;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.stereotype.Controller;
+import com.impress.server.websocket.dto.request.AnswerSubmitRequest;
+import com.impress.server.websocket.service.AnswerWebSocketService;
+
 
 import java.security.Principal;
 
@@ -14,11 +21,20 @@ import java.security.Principal;
 public class RoomWebSocketController {
 
     private final RoomWebSocketService roomWebSocketService;
+    private final GameWebSocketService gameWebSocketService;
+    private final WebSocketEventPublisher eventPublisher;
+    private final AnswerWebSocketService answerWebSocketService;
 
     public RoomWebSocketController(
-            RoomWebSocketService roomWebSocketService
+            RoomWebSocketService roomWebSocketService,
+            GameWebSocketService gameWebSocketService,
+            AnswerWebSocketService answerWebSocketService,
+            WebSocketEventPublisher eventPublisher
     ) {
         this.roomWebSocketService = roomWebSocketService;
+        this.gameWebSocketService = gameWebSocketService;
+        this.answerWebSocketService = answerWebSocketService;
+        this.eventPublisher = eventPublisher;
     }
 
     @MessageMapping("/rooms/{roomCode}/enter")
@@ -56,6 +72,49 @@ public class RoomWebSocketController {
                 roomCode,
                 stompPrincipal.participantId(),
                 request.targetParticipantId()
+        );
+    }
+
+    @MessageMapping("/rooms/{roomCode}/start")
+    public void start(
+            @DestinationVariable String roomCode,
+            Principal principal
+    ) {
+        StompPrincipal stompPrincipal =
+                requireStompPrincipal(principal);
+
+        RoundStartResponse response =
+                gameWebSocketService.start(
+                        roomCode,
+                        stompPrincipal.participantId()
+                );
+
+        eventPublisher.broadcastToRoom(
+                roomCode,
+                WebSocketEventType.ROUND_START,
+                response
+        );
+    }
+
+    @MessageMapping("/rooms/{roomCode}/answer")
+    public void answer(
+            @DestinationVariable String roomCode,
+            AnswerSubmitRequest request,
+            Principal principal
+    ) {
+        StompPrincipal stompPrincipal =
+                requireStompPrincipal(principal);
+
+        answerWebSocketService.submit(
+                roomCode,
+                stompPrincipal.participantId(),
+                request
+        ).ifPresent(response ->
+                eventPublisher.broadcastToRoom(
+                        roomCode,
+                        WebSocketEventType.ROUND_RESULT,
+                        response
+                )
         );
     }
 

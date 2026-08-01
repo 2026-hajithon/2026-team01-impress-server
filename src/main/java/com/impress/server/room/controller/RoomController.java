@@ -64,4 +64,16 @@ public class RoomController {
 
         return ResponseEntity.ok(ApiResponse.success(responseData));
     }
+
+    @GetMapping("/{roomCode}/host")
+    public ResponseEntity<ApiResponse<RoomHostResponse>> getRoomHost(@PathVariable String roomCode) {
+        RoomHostResponse response = roomService.getRoomHost(roomCode);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/{roomCode}/name")
+    public ResponseEntity<ApiResponse<RoomNameResponse>> getRoomName(@PathVariable String roomCode) {
+        RoomNameResponse response = roomService.getRoomName(roomCode);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
 }
