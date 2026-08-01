@@ -184,11 +184,13 @@ public class RoomService {
                     long connectedCount = participantRepository.countByRoomAndConnectionStatus(room, ConnectionStatus.CONNECTED);
                     int nextVoteRequired = (int) Math.floor(connectedCount / 2.0) + 1;
 
-                    // TODO: 결과 조회 로직
+                    List<Answer> answers = answerRepository.findByGameRound(currentRound);
+                    Map<String, Object> resultData = buildResultMap(currentRound, answers);
 
                     roundBuilder.myNextVoteSubmitted(myNextVoteSubmitted)
                             .nextVoteCount((int) nextVoteCount)
-                            .nextVoteRequired(nextVoteRequired);
+                            .nextVoteRequired(nextVoteRequired)
+                            .result(resultData);
                 }
 
                 responseBuilder.currentRound(roundBuilder.build());
