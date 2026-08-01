@@ -32,7 +32,7 @@ public class GameWebSocketService {
 
     private static final int MIN_PARTICIPANTS = 2;
     private static final int MAX_PARTICIPANTS = 8;
-    private static final int COMMON_ROUND_COUNT = 2;
+    private static final int COMMON_ROUND_COUNT = 1;
     private static final int BLANK_TIME_LIMIT_SECONDS = 60;
     private static final int INDIVIDUAL_CHOICE_TIME_LIMIT_SECONDS = 15;
     private static final int COMMON_VOTE_TIME_LIMIT_SECONDS = 15;
