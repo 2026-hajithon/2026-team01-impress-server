@@ -9,5 +9,4 @@ public class ImpressServerApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(ImpressServerApplication.class, args);
 	}
-
 }
