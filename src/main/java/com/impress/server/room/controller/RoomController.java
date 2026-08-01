@@ -1,10 +1,7 @@
 package com.impress.server.room.controller;
 
 import com.impress.server.common.dto.ApiResponse;
-import com.impress.server.room.dto.RoomCreateRequest;
-import com.impress.server.room.dto.RoomCreateResponse;
-import com.impress.server.room.dto.RoomJoinRequest;
-import com.impress.server.room.dto.RoomJoinResponse;
+import com.impress.server.room.dto.*;
 import com.impress.server.room.service.RoomService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -36,5 +33,14 @@ public class RoomController {
         return ResponseEntity.ok(ApiResponse.success(responseData));
     }
 
+    @GetMapping("/{roomCode}/sync")
+    public ResponseEntity<ApiResponse<RoomSyncResponse>> syncRoom(
+            @PathVariable String roomCode,
+            @RequestHeader("Participant-Id") Long participantId) {
+
+        RoomSyncResponse responseData = roomService.syncRoomState(roomCode, participantId);
+
+        return ResponseEntity.ok(ApiResponse.success(responseData));
+    }
 
 }

@@ -6,16 +6,15 @@ import com.impress.server.participant.domain.ParticipantRole;
 import com.impress.server.participant.repository.ParticipantRepository;
 import com.impress.server.room.domain.Room;
 import com.impress.server.room.domain.RoomStatus;
-import com.impress.server.room.dto.RoomCreateRequest;
-import com.impress.server.room.dto.RoomCreateResponse;
-import com.impress.server.room.dto.RoomJoinRequest;
-import com.impress.server.room.dto.RoomJoinResponse;
+import com.impress.server.room.dto.*;
 import com.impress.server.room.repository.RoomRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -89,5 +88,52 @@ public class RoomService {
                 room.getStatus(),
                 savedGuest.getRole()
         );
+    }
+    @Transactional
+    public RoomSyncResponse syncRoomState(String roomCode, Long participantId) {
+        // 1. 방 조회
+        Room room = roomRepository.findByCode(roomCode)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 방입니다."));
+
+        // 2. 요청한 참가자 조회 및 해당 방 소속이 맞는지 검증
+        Participant me = participantRepository.findById(participantId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 참가자입니다."));
+
+        if (!me.getRoom().getId().equals(room.getId())) {
+            throw new IllegalArgumentException("해당 방의 참가자가 아닙니다.");
+        }
+
+        // 3. 응답 객체 뼈대 생성 (공통 필드 세팅)
+        RoomSyncResponse.RoomSyncResponseBuilder responseBuilder = RoomSyncResponse.builder()
+                .roomStatus(room.getStatus())
+                .myRole(me.getRole());
+
+        // 4. 방 상태에 따른 추가 데이터 세팅
+        switch (room.getStatus()) {
+            case WAITING:
+                // 대기방: 현재 방에 있는 모든 참가자 목록을 조회하여 DTO로 변환
+                List<ParticipantInfo> participantInfos = participantRepository.findByRoom(room).stream()
+                        .map(p -> new ParticipantInfo(
+                                p.getId(),
+                                p.getName(),
+                                p.getRole(),
+                                p.getConnectionStatus()
+                        ))
+                        .collect(Collectors.toList());
+                responseBuilder.participants(participantInfos);
+                break;
+
+            case PLAYING:
+                // TODO: 게임 진행 상태
+                // 차후 game_sessions, game_rounds 테이블이 생성되면 여기서 현재 라운드를 조회해 세팅합니다.
+                // responseBuilder.currentRound(조회된_라운드_정보);
+                break;
+
+            case FINISHED:
+                // 종료 상태: 공통 필드(roomStatus, myRole)만 있으면 되므로 추가 작업 없음
+                break;
+        }
+
+        return responseBuilder.build();
     }
 }
