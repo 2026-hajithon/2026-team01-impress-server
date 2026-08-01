@@ -388,4 +388,14 @@ public class RoomService {
         // 3. 방장 이름 반환
         return new RoomHostResponse(host.getName());
     }
+
+    @Transactional
+    public RoomNameResponse getRoomName(String roomCode) {
+        // 1. 방 조회
+        Room room = roomRepository.findByCode(roomCode)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 방입니다."));
+
+        // 2. 방 이름 반환
+        return new RoomNameResponse(room.getName());
+    }
 }
