@@ -109,6 +109,12 @@ public class RoomWebSocketController {
                 roomCode,
                 stompPrincipal.participantId(),
                 request
+        ).ifPresent(response ->
+                eventPublisher.broadcastToRoom(
+                        roomCode,
+                        WebSocketEventType.ROUND_RESULT,
+                        response
+                )
         );
     }
 

@@ -18,7 +18,9 @@ import com.impress.server.websocket.dto.request.AnswerSubmitRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.impress.server.websocket.dto.response.RoundResultResponse;
 
+import java.util.Optional;
 import java.time.LocalDateTime;
 
 @Service
@@ -32,9 +34,10 @@ public class AnswerWebSocketService {
     private final GameRoundRepository gameRoundRepository;
     private final AnswerRepository answerRepository;
     private final QuestionOptionRepository questionOptionRepository;
+    private final RoundResultService roundResultService;
 
     @Transactional
-    public void submit(
+    public Optional<RoundResultResponse> submit(
             String roomCode,
             Long participantId,
             AnswerSubmitRequest request
@@ -65,7 +68,7 @@ public class AnswerWebSocketService {
                 );
 
         GameRound gameRound =
-                gameRoundRepository.findById(
+                gameRoundRepository.findByIdForUpdate(
                         request.roundId()
                 ).orElseThrow(() ->
                         new IllegalArgumentException(
@@ -85,6 +88,11 @@ public class AnswerWebSocketService {
         );
 
         answerRepository.saveAndFlush(answer);
+
+        return roundResultService.createIfReady(
+                gameRound,
+                room
+        );
     }
 
     private void validateRequest(

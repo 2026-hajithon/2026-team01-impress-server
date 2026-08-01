@@ -4,6 +4,10 @@ import com.impress.server.game.domain.GameRound;
 import com.impress.server.game.domain.GameRoundStatus;
 import com.impress.server.game.domain.GameSession;
 import org.springframework.data.jpa.repository.JpaRepository;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
@@ -29,5 +33,15 @@ public interface GameRoundRepository
 
     long countByGameSession(
             GameSession gameSession
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        SELECT gameRound
+        FROM GameRound gameRound
+        WHERE gameRound.id = :roundId
+        """)
+    Optional<GameRound> findByIdForUpdate(
+            @Param("roundId") Long roundId
     );
 }
